@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gcp_microservice_management"
-version = "0.2.0"
+version = "0.3.0"
 description = "A package to deploy microservices on GCP"
 authors = ["David Piper <dbpiper@gmail.com>"]
 packages = [{ include = "gcp_microservice_management" }]

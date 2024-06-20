@@ -2,6 +2,8 @@ import datetime
 import time
 from google.cloud import apigateway_v1
 from google.cloud.apigateway_v1.types import Gateway
+from google.api_core.exceptions import NotFound
+
 from .util import color_text, wait_for_deletion
 from .constants import OKCYAN, OKGREEN, WARNING, FAIL
 

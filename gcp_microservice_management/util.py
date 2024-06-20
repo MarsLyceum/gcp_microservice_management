@@ -1,8 +1,8 @@
 import subprocess
-import sys
+import os
 import time
 from google.api_core.exceptions import NotFound
-from .constants import *
+from .constants import ENDC, WARNING, OKBLUE, BOLD, FAIL
 
 
 def color_text(text, color_code):

@@ -3,6 +3,9 @@ import time
 from google.cloud import apigateway_v1
 from google.cloud.apigateway_v1.types import Gateway
 from google.api_core.exceptions import NotFound
+from openapi_spec_validator import validate_spec
+from openapi_spec_validator.readers import read_from_filename
+import os
 
 from .util import color_text, wait_for_deletion
 from .constants import OKCYAN, OKGREEN, WARNING, FAIL
@@ -60,6 +63,24 @@ def create_or_update_api_config(
     print(color_text("Creating or Updating API Config...", OKCYAN))
     parent = client.api_path(project_id, api_id)
     api_config_name = f"projects/{project_id}/locations/global/apis/{api_id}/configs/{api_config_id}"
+
+    # Check if the OpenAPI document exists and is readable
+    if not os.path.isfile(api_config_file):
+        raise FileNotFoundError(
+            f"OpenAPI document not found at path: {api_config_file}"
+        )
+
+    # Validate OpenAPI document
+    try:
+        spec_dict, _ = read_from_filename(api_config_file)
+        validate_spec(spec_dict)
+        print(
+            color_text(
+                f"OpenAPI document {api_config_file} is valid.", OKGREEN
+            )
+        )
+    except Exception as e:
+        raise ValueError(f"Invalid OpenAPI document: {e}")
 
     api_config = apigateway_v1.ApiConfig(
         name=api_config_name,

@@ -53,6 +53,27 @@ def create_api_gateway_service(
             time.sleep(5)
 
 
+def validate_api_config(api_config: apigateway_v1.ApiConfig):
+    """Validate the ApiConfig object."""
+    print(color_text("Validating ApiConfig object...", OKCYAN))
+
+    # Ensure display_name is set
+    if not api_config.display_name:
+        raise ValueError("ApiConfig display_name is required.")
+
+    # Ensure OpenAPI documents are provided
+    if not api_config.openapi_documents:
+        raise ValueError("ApiConfig must have at least one OpenAPI document.")
+
+    for document in api_config.openapi_documents:
+        if not document.document or not document.document.path:
+            raise ValueError(
+                "Each OpenAPI document must have a valid file path."
+            )
+
+    print(color_text("ApiConfig object validation passed.", OKGREEN))
+
+
 def create_or_update_api_config(
     client: apigateway_v1.ApiGatewayServiceClient,
     project_id: str,
@@ -92,6 +113,9 @@ def create_or_update_api_config(
         ],
     )
 
+    # Validate the ApiConfig object
+    validate_api_config(api_config)
+
     try:
         existing_config = client.get_api_config(name=api_config_name)
         if existing_config:
@@ -111,15 +135,17 @@ def create_or_update_api_config(
             )
         )
 
+    request = apigateway_v1.CreateApiConfigRequest(
+        parent=parent,
+        api_config=api_config,
+        api_config_id=api_config_id,
+    )
+
     start_time = datetime.datetime.now()
     max_duration = datetime.timedelta(minutes=10)
     while True:
         try:
-            client.create_api_config(
-                parent=parent,
-                api_config=api_config,
-                api_config_id=api_config_id,
-            )
+            client.create_api_config(request=request)
             print(color_text(f"API Config {api_config_id} created.", OKGREEN))
             break
         except Exception as e:

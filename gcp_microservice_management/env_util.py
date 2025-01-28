@@ -6,8 +6,8 @@ from .util import color_text
 from .constants import FAIL
 
 
-def find_key_file():
-    key_files = glob("./terraform/hephaestus-418809-*.json")
+def find_key_file(keyfile_dir: str, keyfile_glob: str):
+    key_files = glob(f"{keyfile_dir}/{keyfile_glob}")
     if not key_files:
         print(color_text("No service account key file found", FAIL))
         sys.exit(1)

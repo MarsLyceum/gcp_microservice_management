@@ -1,6 +1,5 @@
 from google.api_core.exceptions import NotFound
 from google.cloud import run_v2
-from google.protobuf.field_mask_pb2 import FieldMask
 import time
 
 from .util import color_text, run_command
@@ -68,11 +67,7 @@ def deploy_to_cloud_run(
             # Set the full service name in the Service object.
             service.name = service_path
 
-            # Optionally, set an update mask to indicate which fields are being updated.
-            update_mask = FieldMask(paths=["template"])
-            updated_service = client.update_service(
-                service=service, update_mask=update_mask
-            )
+            updated_service = client.update_service(service=service)
 
             # Optionally wait until the new revision is ready before shifting traffic.
             while True:

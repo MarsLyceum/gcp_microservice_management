@@ -1,7 +1,9 @@
 from google.api_core.exceptions import NotFound
 from google.cloud import run_v2
 import time
-from .util import color_text, run_command, OKCYAN, OKGREEN, WARNING
+
+from .util import color_text, run_command
+from .constants import OKCYAN, OKGREEN, WARNING
 
 
 def deploy_to_cloud_run(

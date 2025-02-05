@@ -1,9 +1,7 @@
 from google.api_core.exceptions import NotFound
 from google.cloud import run_v2
 import time
-
-from .util import color_text, wait_for_deletion, run_command
-from .constants import OKCYAN, OKGREEN, WARNING
+from .util import color_text, run_command, OKCYAN, OKGREEN, WARNING
 
 
 def deploy_to_cloud_run(
@@ -14,27 +12,13 @@ def deploy_to_cloud_run(
     registry="gcr.io",
     cloud_sql_instance=None,
 ):
-    """
-    Deploy a service to Google Cloud Run.
-
-    :param project_id: GCP project ID
-    :param region: GCP region
-    :param service_name: Name of the Cloud Run service
-    :param env_vars: Dictionary of environment variables to set on the
-                                container
-    :param registry: The container registry hostname (default: 'gcr.io')
-    :param cloud_sql_instance: (Optional) The Cloud SQL instance connection
-                                name (e.g., 'project:region:instance'). If
-                                omitted, no Cloud SQL volume or annotations
-                                will be added.
-    """
     print(color_text("Deploying to Google Cloud Run...", OKCYAN))
     client = run_v2.ServicesClient()
     service_path = (
         f"projects/{project_id}/locations/{region}/services/{service_name}"
     )
 
-    # Prepare optional Cloud SQL config if cloud_sql_instance is provided
+    # Prepare Cloud SQL configuration if needed.
     volume_mounts = []
     volumes = []
     annotations = {}
@@ -55,7 +39,7 @@ def deploy_to_cloud_run(
             cloud_sql_instance
         )
 
-    # Build the service object
+    # Build the service object with the new image.
     service = run_v2.Service(
         template=run_v2.RevisionTemplate(
             containers=[
@@ -73,50 +57,64 @@ def deploy_to_cloud_run(
         ),
     )
 
-    # Check if the service already exists
     try:
+        # Instead of deleting, try to update the service.
         existing_service = client.get_service(name=service_path)
         if existing_service:
+            print(color_text(f"Updating service {service_name}...", OKCYAN))
+            updated_service = client.update_service(service=service)
+            # Optionally wait until the new revision is ready before shifting traffic.
+            while True:
+                try:
+                    client.get_service(name=service_path)
+                    print(
+                        color_text(
+                            f"Service {service_name} is now updated.", OKGREEN
+                        )
+                    )
+                    break
+                except NotFound:
+                    print(
+                        color_text(
+                            f"Waiting for {service_name} to update...", WARNING
+                        )
+                    )
+                    time.sleep(5)
+        else:
             print(
                 color_text(
-                    f"Service {service_name} already exists. Deleting...",
-                    WARNING,
+                    f"Service {service_name} does not exist. Creating new service...",
+                    OKGREEN,
                 )
             )
-            client.delete_service(name=service_path)
-            wait_for_deletion(client.get_service, service_path)
-    except NotFound:
-        print(
-            color_text(
-                f"Service {service_name} does not exist. Creating new service...",
-                OKGREEN,
+            client.create_service(
+                parent=f"projects/{project_id}/locations/{region}",
+                service=service,
+                service_id=service_name,
             )
-        )
+            # Wait for the service to become active.
+            while True:
+                try:
+                    client.get_service(name=service_path)
+                    print(
+                        color_text(
+                            f"Service {service_name} is now active.", OKGREEN
+                        )
+                    )
+                    break
+                except NotFound:
+                    print(
+                        color_text(
+                            f"Waiting for {service_name} to be created...",
+                            WARNING,
+                        )
+                    )
+                    time.sleep(5)
+    except Exception as e:
+        print(color_text(f"Error deploying service: {str(e)}", WARNING))
+        raise
 
-    # Create the service
-    client.create_service(
-        parent=f"projects/{project_id}/locations/{region}",
-        service=service,
-        service_id=service_name,
-    )
-
-    # Wait until the service is active
-    while True:
-        try:
-            client.get_service(name=service_path)
-            print(
-                color_text(f"Service {service_name} is now active.", OKGREEN)
-            )
-            break
-        except NotFound:
-            print(
-                color_text(
-                    f"Waiting for {service_name} to be created...", WARNING
-                )
-            )
-            time.sleep(5)
-
-    # Set IAM policy to allow unauthenticated access
+    # Set IAM policy for unauthenticated access.
     print(
         color_text(
             "Setting IAM policy to allow unauthenticated access...", OKCYAN

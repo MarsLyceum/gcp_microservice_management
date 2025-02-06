@@ -13,6 +13,7 @@ def deploy_to_cloud_run(
     env_vars,
     registry="gcr.io",
     cloud_sql_instance=None,
+    force_recreate=False,  # New parameter: if True, delete & recreate instead of updating
 ):
     print(color_text("Deploying to Google Cloud Run...", OKCYAN))
     client = run_v2.ServicesClient()
@@ -60,38 +61,41 @@ def deploy_to_cloud_run(
     )
 
     try:
-        # Instead of deleting, try to update the service.
-        existing_service = client.get_service(name=service_path)
-        if existing_service:
-            print(color_text(f"Updating service {service_name}...", OKCYAN))
-            # Set the full service name in the Service object.
-            service.name = service_path
+        # Check if the service already exists.
+        try:
+            existing_service = client.get_service(name=service_path)
+        except NotFound:
+            existing_service = None
 
-            updated_service = client.update_service(service=service)
-
-            # Optionally wait until the new revision is ready before shifting traffic.
-            while True:
-                try:
-                    client.get_service(name=service_path)
-                    print(
-                        color_text(
-                            f"Service {service_name} is now updated.", OKGREEN
-                        )
+        if force_recreate:
+            if existing_service:
+                print(
+                    color_text(
+                        f"Deleting existing service {service_name}...", OKCYAN
                     )
-                    break
-                except NotFound:
-                    print(
-                        color_text(
-                            f"Waiting for {service_name} to update...", WARNING
-                        )
-                    )
-                    time.sleep(5)
-        else:
-            print(
-                color_text(
-                    f"Service {service_name} does not exist. Creating new service...",
-                    OKGREEN,
                 )
+                delete_op = client.delete_service(name=service_path)
+                # Wait until the service is deleted.
+                while True:
+                    try:
+                        client.get_service(name=service_path)
+                        print(
+                            color_text(
+                                f"Waiting for {service_name} to be deleted...",
+                                WARNING,
+                            )
+                        )
+                        time.sleep(5)
+                    except NotFound:
+                        print(
+                            color_text(
+                                f"Service {service_name} deleted.", OKGREEN
+                            )
+                        )
+                        break
+            # Create new service
+            print(
+                color_text(f"Creating new service {service_name}...", OKCYAN)
             )
             client.create_service(
                 parent=f"projects/{project_id}/locations/{region}",
@@ -116,6 +120,64 @@ def deploy_to_cloud_run(
                         )
                     )
                     time.sleep(5)
+        else:
+            if existing_service:
+                print(
+                    color_text(f"Updating service {service_name}...", OKCYAN)
+                )
+                # Set the full service name in the Service object.
+                service.name = service_path
+                updated_service = client.update_service(service=service)
+                # Optionally wait until the new revision is ready.
+                while True:
+                    try:
+                        client.get_service(name=service_path)
+                        print(
+                            color_text(
+                                f"Service {service_name} is now updated.",
+                                OKGREEN,
+                            )
+                        )
+                        break
+                    except NotFound:
+                        print(
+                            color_text(
+                                f"Waiting for {service_name} to update...",
+                                WARNING,
+                            )
+                        )
+                        time.sleep(5)
+            else:
+                print(
+                    color_text(
+                        f"Service {service_name} does not exist. Creating new service...",
+                        OKGREEN,
+                    )
+                )
+                client.create_service(
+                    parent=f"projects/{project_id}/locations/{region}",
+                    service=service,
+                    service_id=service_name,
+                )
+                # Wait for the service to become active.
+                while True:
+                    try:
+                        client.get_service(name=service_path)
+                        print(
+                            color_text(
+                                f"Service {service_name} is now active.",
+                                OKGREEN,
+                            )
+                        )
+                        break
+                    except NotFound:
+                        print(
+                            color_text(
+                                f"Waiting for {service_name} to be created...",
+                                WARNING,
+                            )
+                        )
+                        time.sleep(5)
     except Exception as e:
         print(color_text(f"Error deploying service: {str(e)}", WARNING))
         raise

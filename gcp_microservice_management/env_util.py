@@ -1,6 +1,6 @@
 import os
 from glob import glob
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 import sys
 from .util import color_text
 from .constants import FAIL
@@ -26,9 +26,4 @@ def find_env_file():
 
 
 def load_env_variables(env_file):
-    load_dotenv(env_file)
-    return {
-        key: os.getenv(key)
-        for key in os.environ
-        if key.startswith("DATABASE_")
-    }
+    return dotenv_values(env_file)

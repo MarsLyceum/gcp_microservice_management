@@ -24,9 +24,11 @@ def wait_for_deletion(get_func, name):
 
 
 def run_command(command, env=None):
-    redacted_command = command.replace(
-        os.getenv("DATABASE_PASSWORD", ""), "****"
-    )
+    db_password = os.getenv("DATABASE_PASSWORD", "")
+    if db_password:
+        redacted_command = command.replace(db_password, "****")
+    else:
+        redacted_command = command
     print(color_text(f"Running command: {redacted_command}", OKBLUE + BOLD))
     result = subprocess.run(
         command, shell=True, env=env, capture_output=True, text=True

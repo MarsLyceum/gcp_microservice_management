@@ -30,11 +30,24 @@ def run_command(command, env=None):
     else:
         redacted_command = command
     print(color_text(f"Running command: {redacted_command}", OKBLUE + BOLD))
-    result = subprocess.run(
-        command, shell=True, env=env, capture_output=True, text=True
+
+    process = subprocess.Popen(
+        command,
+        shell=True,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,  # line-buffered
     )
-    if result.returncode != 0:
+
+    # Stream output line by line as it arrives.
+    for line in process.stdout:
+        print(line, end="")  # already includes newline
+
+    process.wait()
+    if process.returncode != 0:
         print(color_text(f"Command failed: {redacted_command}", FAIL))
-        print(result.stderr)
-        raise RuntimeError(result.stderr)
-    return result.stdout
+        raise RuntimeError(
+            f"Command failed with return code {process.returncode}"
+        )

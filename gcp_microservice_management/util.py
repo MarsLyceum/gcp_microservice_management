@@ -38,6 +38,8 @@ def run_command(command, env=None):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        encoding="utf-8",  # force UTF-8 decoding
+        errors="replace",  # replace characters that cannot be decoded
         bufsize=1,  # line-buffered
     )
 

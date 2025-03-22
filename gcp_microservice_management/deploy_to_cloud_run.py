@@ -13,7 +13,8 @@ def deploy_to_cloud_run(
     env_vars,
     registry="gcr.io",
     cloud_sql_instance=None,
-    force_recreate=False,  # New parameter: if True, delete & recreate instead of updating
+    force_recreate=False,  # if True, delete & recreate instead of updating
+    memory_limit="512Mi",  # New parameter: default memory limit
 ):
     print(color_text("Deploying to Google Cloud Run...", OKCYAN))
     client = run_v2.ServicesClient()
@@ -43,6 +44,7 @@ def deploy_to_cloud_run(
         )
 
     # Build the service object with the new image.
+    # Note the addition of the container resources field using memory_limit.
     service = run_v2.Service(
         template=run_v2.RevisionTemplate(
             containers=[
@@ -53,6 +55,9 @@ def deploy_to_cloud_run(
                         for key, value in env_vars.items()
                     ],
                     volume_mounts=volume_mounts,
+                    resources=run_v2.ResourceRequirements(
+                        limits={"memory": memory_limit}
+                    ),
                 )
             ],
             volumes=volumes,

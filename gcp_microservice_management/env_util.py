@@ -22,7 +22,7 @@ def find_env_file():
             return env_path
         current_dir = os.path.dirname(current_dir)
     print(color_text(".env file not found", FAIL))
-    sys.exit(1)
+    return None
 
 
 def load_env_variables(env_file):

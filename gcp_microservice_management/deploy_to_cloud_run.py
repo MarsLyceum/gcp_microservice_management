@@ -48,7 +48,7 @@ def deploy_to_cloud_run(
     service = run_v2.Service(
         # add a billing label so you can track cost by service
         template=run_v2.RevisionTemplate(
-            labels={"billing": service_name},
+            labels={service_name: service_name},
             containers=[
                 run_v2.Container(
                     image=f"{registry}/{project_id}/{service_name}:latest",
